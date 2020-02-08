@@ -6,3 +6,5 @@ L'idea è quella di presentare una spada la cui lama può essere fatta di divers
 Ho trovato una cubemap coerente che rappresenta lo spazio con una luna alla pagina https://www.hiclipart.com/free-transparent-background-png-clipart-dcdwa/.
 ## Rendering Manico
 Ho fatto il rendering del manico e impostato lo sfondo della scena con la cubemap e renderizzato il manico attraverso l'AO map e la funzione di rendering vista a lezione per superfici riflettenti utilizzando la roughness contenuta nella texture.
+## Rendering "lama" 
+Ho creato un semplice modello della lama usando blender e lo ho aggiunto alla scena. Ho quindi fatto gli shader per la versione della lama fatta d'acqua usando la funzione di rifrazione.
