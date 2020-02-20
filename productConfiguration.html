@@ -74,7 +74,7 @@
 			varying vec2 vUv;
 			uniform vec3 pointLightPosition;
 			uniform vec3 lightColor;
-            uniform sampler2D specularMap;
+            uniform sampler2D metalMap;
 			uniform sampler2D diffuseMap;
             uniform sampler2D roughnessMap;
             uniform sampler2D AO;
@@ -146,11 +146,11 @@
 				vec3 v = normalize( -vPosition);
 				vec3 vReflect = reflect(vPosition,n);
                 vec3 r = inverseTransformDirection( vReflect, viewMatrix );
-                cspec = texture2D( specularMap, vUv ).rgb;
-                cspec = pow( cspec, vec3(2.2));
+                vec3 metal = texture2D( metalMap, vUv ).rgb;
+                metal = pow( metal, vec3(2.2));
                 cdiff = texture2D( diffuseMap,vUv ).rgb;
 				cdiff = pow( cdiff, vec3(2.2));
-				cspec = cspec * cdiff; //la texture del manico è una metalmap non una specular
+				cspec = metal * cdiff; //la texture del manico è una metalmap non una specular
 
 				float blinnShininessExponent = GGXRoughnessToBlinnExponent(roughness);
 				float specularMIPLevel = getSpecularMIPLevel(blinnShininessExponent, 8 );
@@ -158,7 +158,7 @@
 	 			vec3 envLight = textureCubeLodEXT( envMap, vec3(-r.x, r.yz), specularMIPLevel ).rgb;
 	 			// texture in sRGB, linearize
 				envLight = pow( envLight, vec3(2.2));
-				vec3 outRadiance = envLight*BRDF_Specular_GGX_Environment(n, v, cspec, roughness)+(cdiff*texture2D( AO, vUv ).xyz).xyz * 0.2;
+				vec3 outRadiance = envLight*BRDF_Specular_GGX_Environment(n, v, cspec, roughness)+(cdiff*(vec3(1)-metal)*texture2D( AO, vUv ).xyz).xyz * 0.2;
 				
 				//BRDF per point light usando come luce quella emessa dalla lama
 				if(lightColor != vec3(0)){
@@ -249,7 +249,7 @@
 						vec3 fresnelRefract = FSchlick(nDotv, (vec3(1) - cspec));
                         outRadiance = refractEnvLight*fresnelRefract + fresnel*reflectEnvLight;
                     }
-                    if(material == 2.0){ //ferro
+                    if(material == 2.0){ //ferro o oro
 						vec3 r = reflect(-worldV,worldN);
 						vec3 envLight = textureCube( envMap, vec3(-r.x, r.yz)).rgb;
 						envLight = pow( envLight, vec3(2.2));
@@ -271,23 +271,33 @@
 			var controls = new THREE.OrbitControls( camera, renderer.domElement );
 			var scene = new THREE.Scene();
 
-			var loader = new THREE.CubeTextureLoader();
-				loader.setPath( 'textures/Space/' );
+			function loadCube(cubename){
+				var loader = new THREE.CubeTextureLoader();
+					loader.setPath( 'textures/' + cubename );
 
+				
 				var textureCube = loader.load( [
-					'posx.png', 'negx.png',
-					'posy.png', 'negy.png',
-					'posz.png', 'negz.png'
+					'/px.png', '/nx.png',
+					'/py.png', '/ny.png',
+					'/pz.png', '/nz.png'
 				] );
 
-			scene.background = textureCube;
+				textureCube.minFilter = THREE.LinearMipMapLinearFilter;
+				
+				return textureCube;
+			};
 
-			textureCube.minFilter = THREE.LinearMipMapLinearFilter;
+			var ambientazione = {
+				setting: 'Space',
+			}
+			
+			var cubeMap = loadCube(ambientazione.setting);
+			scene.background = cubeMap;
 
 
 			var normalMap = loadTexture( "textures/lightsaber/normal.png" );
 			var diffuseMap = loadTexture( "textures/lightsaber/albedo.jpg" );
-			var specularMap = loadTexture( "textures/lightsaber/metallic.jpg" );
+			var metalMap = loadTexture( "textures/lightsaber/metallic.jpg" );
 			var roughnessMap = loadTexture( "textures/lightsaber/roughness.jpg" );
 			var AO = loadTexture( "textures/lightsaber/AO.jpg" );
 
@@ -298,12 +308,12 @@
 			}
 
 			var mUniforms = {
-                		specularMap: { type: "t", value: specularMap},
+                		metalMap: { type: "t", value: metalMap},
 						diffuseMap:	{ type: "t", value: diffuseMap},
 						roughnessMap:	{ type: "t", value: roughnessMap},
                         AO:	{ type: "t", value: AO},
 				        normalMap:	{ type: "t", value: normalMap},
-						envMap:	{ type: "t", value: textureCube},
+						envMap:	{ type: "t", value: cubeMap},
 						lightColor: { type: "v3", value: lamaParameters.lightColor },
 						pointLightPosition:	{ type: "v3", value: new THREE.Vector3(0,0,0) },
 					};
@@ -325,21 +335,25 @@
 					geometry = model.scene.children[ 0 ].children[0].geometry;
 					//geometry = obj.children[0].geometry;
 					geometry.center();
-					mesh = new THREE.Mesh( geometry, mMaterial );
-					mesh.position.set(0,-1.4,0);
-					mesh.scale.multiplyScalar( 0.01 );
-					mesh.rotation.z = 270 * Math.PI/180;
-					mesh.rotation.y = 180 * Math.PI/180;
+					mMesh = new THREE.Mesh( geometry, mMaterial );
+					mMesh.position.set(0,-1.4,0);
+					mMesh.scale.multiplyScalar( 0.01 );
+					mMesh.rotation.z = 270 * Math.PI/180;
+					mMesh.rotation.y = 180 * Math.PI/180;
 					THREE.BufferGeometryUtils.computeTangents(geometry);
-					scene.add( mesh );
+					scene.add( mMesh );
 				} );
 
-			
 
 			var lUniforms = {
+				metalMap: { type: "t", value: metalMap},
+				diffuseMap:	{ type: "t", value: diffuseMap},
+				roughnessMap:	{ type: "t", value: roughnessMap},
+                AO:	{ type: "t", value: AO},
+				normalMap:	{ type: "t", value: normalMap},
 				cspec:	{ type: "v3", value: new THREE.Vector3(0.562,0.565,0.578) },
-				envMap:	{ type: "t", value: textureCube},
-				material: { type: "f", value: lamaParameters.material },
+				envMap:	{ type: "t", value: cubeMap},
+				material: { type: "f", value: 3.0 },
                 lightColor: { type: "v3", value: lamaParameters.lightColor }
 			};
 
@@ -373,7 +387,7 @@
 					var texture = new THREE.TextureLoader().load( file , function ( texture ) {
 
 						texture.minFilter = THREE.LinearMipMapLinearFilter;
-						texture.anisotropy = renderer.getMaxAnisotropy();
+						texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
 						texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
     			  texture.offset.set( 0, 0 );
 						texture.needsUpdate = true;
@@ -446,6 +460,12 @@
 			function buildGui() {
 
 				clearGui();
+				gui.add(ambientazione,'setting',[ 'City', 'Space' ]).onChange( function (value) {
+					cubeMap = loadCube(ambientazione.setting);
+					scene.background = cubeMap;
+					mUniforms.envMap.value = cubeMap;
+					lUniforms.envMap.value = cubeMap;
+				});
 				gui.add(lamaParameters,'unsheathe').onChange( function (value) {
 					if(!value){
 						removeEntity(mesh);
@@ -454,30 +474,64 @@
 					}
 				});
 				lamaMaterial = gui.addFolder('Blade Material');
-				lamaMaterial.add(lamaParameters,'material',[ "Water", "Light", "Iron" ]);
+				lamaMaterial.add(lamaParameters,'material',[ "Water", "Light", "Iron", "Slime" , "SolarCells", "Gold" ]).onChange( function (value) {
+					if(value == "Slime" || value == "SolarCells"){
+						lUniforms.material.value = 3.0;
+						lUniforms.normalMap.value = loadTexture("textures/" + value + "/TexturesCom_" + value + "_512_normal.png");
+						lUniforms.metalMap.value = loadTexture("textures/" + value + "/TexturesCom_" + value + "_512_metallic.png");
+						lUniforms.roughnessMap.value = loadTexture("textures/" + value + "/TexturesCom_" + value + "_512_roughness.png");
+						lUniforms.diffuseMap.value = loadTexture("textures/" + value + "/TexturesCom_" + value + "_512_albedo.png");
+						lUniforms.AO.value = loadTexture("textures/" + value + "/TexturesCom_" + value + "_512_ao.png");
+						lMaterial = new THREE.ShaderMaterial({ uniforms: lUniforms, vertexShader: vsm, fragmentShader: fsm });  //uso lo shader del manico
+						if(lamaParameters.unsheathe){
+							mesh.material = lMaterial;
+						}
+						lightColor.domElement.hidden.value = true;
+					}
+					if(lamaParameters.material == "Water"){
+						lUniforms.material.value = 1.0;
+						lUniforms.cspec.value = new THREE.Vector3(0.04,0.04,0.04);
+						lMaterial = new THREE.ShaderMaterial({ uniforms: lUniforms, vertexShader: vsl, fragmentShader: fsl });
+						if(lamaParameters.unsheathe){
+							mesh.material = lMaterial;
+						}
+						lightColor.domElement.hidden = true;
+					}
+					if(lamaParameters.material == "Iron" || lamaParameters.material == "Gold"){
+						lUniforms.material.value = 2.0;
+						if(lamaParameters.material == "Iron"){
+							lUniforms.cspec.value = new THREE.Vector3(0.562,0.565,0.578);
+						}else{
+							lUniforms.cspec.value = new THREE.Vector3(1.022,0.782,0.344);
+						}
+						lMaterial = new THREE.ShaderMaterial({ uniforms: lUniforms, vertexShader: vsl, fragmentShader: fsl });
+						if(lamaParameters.unsheathe){
+							mesh.material = lMaterial;
+						}
+						lightColor.domElement.hidden = true;
+					}
+					if(lamaParameters.material == "Light"){
+						lUniforms.material.value = 3.0;
+						mUniforms.lightColor.value = new THREE.Color(lamaParameters.lightColor);
+						lUniforms.lightColor.value = new THREE.Color(lamaParameters.lightColor);
+						lMaterial = new THREE.ShaderMaterial({ uniforms: lUniforms, vertexShader: vsl, fragmentShader: fsl });
+						if(lamaParameters.unsheathe){
+							mesh.material = lMaterial;
+						}
+						lightColor.domElement.hidden = false;
+					}
+				});
                 lightColor = lamaMaterial.addColor(lamaParameters,'lightColor');
 			}
 
 			function updateUniforms() {
-				if(lamaParameters.material == "Water"){
-					lUniforms.material.value = 1.0;
-					lUniforms.cspec.value = new THREE.Vector3(0.04,0.04,0.04);
-					lightColor.domElement.hidden = true;
-				}
-				if(lamaParameters.material == "Iron"){
-					lUniforms.material.value = 2.0;
-					lUniforms.cspec.value = new THREE.Vector3(0.562,0.565,0.578);
-					lightColor.domElement.hidden = true;
-				}
 				if(lamaParameters.material == "Light"){
-					lUniforms.material.value = 3.0;
 					mUniforms.lightColor.value = new THREE.Color(lamaParameters.lightColor);
 					lUniforms.lightColor.value = new THREE.Color(lamaParameters.lightColor);
-					lightColor.domElement.hidden = false;
 				}
 				if(!lamaParameters.unsheathe || lamaParameters.material!="Light"){
-					mUniforms.lightColor.value = new THREE.Color(0x000000);
-					lightColor.domElement.hidden = true;
+						mUniforms.lightColor.value = new THREE.Color(0x000000);
+						lightColor.domElement.hidden = true;
 				}
 			}
 

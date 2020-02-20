@@ -20,3 +20,11 @@ Ho utilizzato gli esempi visti a lezione per fare la lama di ferro utilizzando l
 Ho cambiato l'effetto del manico in modo che l'AO map abbia più effetto sulle superfici non metalliche e meno su quelle metalliche in modo che su tali superfici in cui la cdiff dovrebbe essere 0 l'effetto diffusivo venga percepito in relazione a quello speculare. Ho dovuto modificare un po' la texture in quanto parti non metalliche avevano cspec a mio parere un po' troppo alte.
 ## Aggiunta della luce della lama laser
 Ho aggiunto una point light per simulare la luce proveniente dalla lama laser sul manico. Per evitare che questa passi oltre la superficie in cima al manico ho aggiunto il raggio di espansione alla luce e lo ho settato a un valore basso.
+## City cubemap 
+Ho aggiunto un'altra cubemap che rappresenta una città moderna (la più futuristica che ho trovato) dal sito https://hdrihaven.com/hdri/download.php?h=modern_buildings_night&r=4k dato che la cubemap dello spazio aveva un poco illuminazione e una più illuminata permette di mostrare meglio alcune caratteristiche del prodotto.
+## Materiali Slime e Pannelli Solari
+Ho trovato due materiali su TexturesCom e li ho aggiunti alle scelte renderizzandoli con lo stesso shader del manico. Sebbene siano abbastanza realistici sto pensando di aggiungere una pointlight per illuminarli meglio e togliere la combinazione tra AO e envLight che ho usato finora. I nuovi materiali e forse anche la lama potrebbero ottenere qualcosina in più.
+## Componente metallica in AO
+Ho pensato di attenuare l'effetto dell'AO in base a quanto un oggetto sia metallico in modo che componenti diffusive non vengano percepito o comunque vengano percepite di meno nelle parti metalliche.
+![prima](images/prima.png) prima di aggiungere questo effetto.
+![dopo](images/prima.png) dopoaverlo aggiunto.
