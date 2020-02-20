@@ -27,4 +27,4 @@ Ho trovato due materiali su TexturesCom e li ho aggiunti alle scelte renderizzan
 ## Componente metallica in AO
 Ho pensato di attenuare l'effetto dell'AO in base a quanto un oggetto sia metallico in modo che componenti diffusive non vengano percepito o comunque vengano percepite di meno nelle parti metalliche.
 ![prima](images/prima.png) prima di aggiungere questo effetto.
-![dopo](images/prima.png) dopoaverlo aggiunto.
+![dopo](images/dopo.png) dopoaverlo aggiunto.
