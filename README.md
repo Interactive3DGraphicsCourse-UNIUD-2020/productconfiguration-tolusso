@@ -8,7 +8,7 @@ Dopo aver trovato un modello di del manico di una spada laser (al sito https://f
 ## Risultato
 
 Il risultato è il sito seguente:
-![Risultato](images/risultato.pgn).
+![Risultato](images/risultato.png).
 con alla destra degli esempi dei vari materiali in ordine: Laser, Acqua, Pannelli Solari, Slime, Ferro e Oro.
 
 ### Credits
