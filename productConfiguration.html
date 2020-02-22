@@ -99,7 +99,6 @@
 						varying vec3 vBitangent;
 						varying vec3 vPosition;
 						varying vec2 vUv;
-						uniform vec3 pointLightPosition;
 						uniform vec3 lightColor;
 						uniform sampler2D metalMap;
 						uniform sampler2D diffuseMap;
@@ -112,7 +111,15 @@
 						#define saturate(a) clamp( a, 0.0, 1.0 )
 						vec3 cdiff;
 						vec3 cspec;
+						vec3 pointLightPosition = vec3(0,5,15);
 						float roughness;
+
+						vec3 getCSpec(vec3 albedo, vec3 metal){  //traendo spunto da https://marmoset.co/posts/pbr-texture-conversion/#metaltospec
+							float r = max(metal.r, 0.2196) * albedo.r; //0.2196 e' #383838
+							float g = max(metal.g, 0.2196) * albedo.g;
+							float b = max(metal.b, 0.2196) * albedo.b;
+							return vec3(r,g,b);
+						}
 
 						vec3 FSchlick(float lDoth) {
 							return (cspec + (vec3(1.0)-cspec)*pow(1.0 - lDoth,5.0));
@@ -177,31 +184,47 @@
 							metal = pow( metal, vec3(2.2));
 							cdiff = texture2D( diffuseMap,vUv ).rgb;
 							cdiff = pow( cdiff, vec3(2.2));
-							cspec = metal * cdiff; //la texture del manico è una metalmap non una specular
-
+							cspec = getCSpec(cdiff, metal); //la texture del manico è una metalmap non una specular
+							cdiff = cdiff*(vec3(1)-metal); // i materiali metallici hanno cdiff=0 più un materiale è metallico meno è la sua cdiff
 							float blinnShininessExponent = GGXRoughnessToBlinnExponent(roughness);
 							float specularMIPLevel = getSpecularMIPLevel(blinnShininessExponent, 8 );
 
 							vec3 envLight = textureCubeLodEXT( envMap, vec3(-r.x, r.yz), specularMIPLevel ).rgb;
 							// texture in sRGB, linearize
 							envLight = pow( envLight, vec3(2.2));
-							vec3 outRadiance = envLight*BRDF_Specular_GGX_Environment(n, v, cspec, roughness)+(cdiff*(vec3(1)-metal)*texture2D( AO, vUv ).xyz).xyz * 0.2;
-							
-							//BRDF per point light usando come luce quella emessa dalla lama
+							vec3 outRadiance = envLight*BRDF_Specular_GGX_Environment(n, v, cspec, roughness); // componente ambientale speculare
+							outRadiance = outRadiance + envLight*(cdiff*texture2D( AO, vUv ).xyz).xyz * 0.2; // componente ambientale diffusiva
+							//BRDF per la luce a punto nella scena
+							vec3 clight = vec3(0.95);
+							vec4 lPosition = viewMatrix * vec4( pointLightPosition, 1.0 );
+							vec3 l = normalize(lPosition.xyz - vPosition.xyz);
+							vec3 h = normalize( v + l);
+							// small quantity to prevent divisions by 0
+							float nDotl = max(dot( n, l ),0.000001);
+							float lDoth = max(dot( l, h ),0.000001);
+							float nDoth = max(dot( n, h ),0.000001);
+							float vDoth = max(dot( v, h ),0.000001);
+							float nDotv = max(dot( n, v ),0.000001);
+							vec3 fresnel = FSchlick(lDoth);
+							vec3 BRDFpl = (vec3(1.0)-fresnel)*cdiff/PI + fresnel*GSmith(nDotv,nDotl)*DGGX(nDoth,roughness*roughness)/
+								(4.0*nDotl*nDotv);
+							outRadiance = outRadiance + PI* clight * nDotl * BRDFpl;
+							//BRDF per point light usando come luce quella emessa dalla lama non viene fatta nella lama perche lightcolor e' sempre vec3(0)
 							if(lightColor != vec3(0)){
-								vec4 lPosition = viewMatrix * vec4( pointLightPosition, 1.0 );
+								vec3 bladeLightPosition = vec3(0.0);
+								lPosition = viewMatrix * vec4( bladeLightPosition, 1.0 );
 								float distance = sqrt((vPosition.x - lPosition.x) * (vPosition.x - lPosition.x) +
 												(vPosition.y - lPosition.y) * (vPosition.y - lPosition.y) +
 												(vPosition.z - lPosition.z) * (vPosition.z - lPosition.z));
 								float att = clamp(1.0 - distance/0.35, 0.0, 1.0); //0.35 è il raggio, molto piccolo perchè la luce non arrivi al resto del modello
 								att *= att; // la luce adrà ad attenuarsi
-								vec3 l = normalize(lPosition.xyz - vPosition.xyz);
-								vec3 h = normalize( v + l);
-								float nDotl = max(dot( n, l ),0.000001);
-								float lDoth = max(dot( l, h ),0.000001);
-								float nDoth = max(dot( n, h ),0.000001);
-								float vDoth = max(dot( v, h ),0.000001);
-								float nDotv = max(dot( n, v ),0.000001);
+								l = normalize(lPosition.xyz - vPosition.xyz);
+								h = normalize( v + l);
+								nDotl = max(dot( n, l ),0.000001);
+								lDoth = max(dot( l, h ),0.000001);
+								nDoth = max(dot( n, h ),0.000001);
+								vDoth = max(dot( v, h ),0.000001);
+								nDotv = max(dot( n, v ),0.000001);
 								vec3 fresnel = FSchlick(lDoth);
 								vec3 BRDF = (vec3(1.0)-fresnel)*cdiff/PI + fresnel*GSmith(nDotv,nDotl)*DGGX(nDoth,roughness*roughness)/
 									(4.0*nDotl*nDotv);
@@ -273,8 +296,7 @@
 									vec3 reflectEnvLight = textureCube( envMap, vec3(-reflectV.x, reflectV.yz)).rgb;
 									refractEnvLight = pow( refractEnvLight, vec3(2.2));
 									reflectEnvLight = pow( reflectEnvLight, vec3(2.2));
-									vec3 fresnelRefract = FSchlick(nDotv, (vec3(1) - cspec));
-									outRadiance = refractEnvLight*fresnelRefract + fresnel*reflectEnvLight;
+									outRadiance = refractEnvLight*(vec3(1.0)-fresnel) + fresnel*reflectEnvLight;
 								}
 								if(material == 2.0){ //ferro o oro
 									vec3 r = reflect(-worldV,worldN);
@@ -342,7 +364,6 @@
 									normalMap:	{ type: "t", value: normalMap},
 									envMap:	{ type: "t", value: cubeMap},
 									lightColor: { type: "v3", value: lamaParameters.lightColor },
-									pointLightPosition:	{ type: "v3", value: new THREE.Vector3(0,0,0) },
 								};
 
 						vsm = document.getElementById("vertexM").textContent;
@@ -499,7 +520,7 @@
 								}
 								if(lamaParameters.material == "Water"){
 									lUniforms.material.value = 1.0;
-									lUniforms.cspec.value = new THREE.Vector3(0.04,0.04,0.04);
+									lUniforms.cspec.value = new THREE.Vector3(0.04,0.04,0.04); //convenzione per i dialettrici
 									lMaterial = new THREE.ShaderMaterial({ uniforms: lUniforms, vertexShader: vsl, fragmentShader: fsl });
 									if(lamaParameters.unsheathe){
 										mesh.material = lMaterial;
@@ -577,7 +598,7 @@
 					</h2>
 				</div>
 				<div class="col-md-3 img">
-					<img src="images/willyjedi.jpg" width="100%" >
+					<img src="images/willyjedi.jpg" width="100%" > <font size=1> img by © 2007 - 2020 IDROIDMONKEY </font>
 				</div>
 				<div class="col-md-9">
 					<p>

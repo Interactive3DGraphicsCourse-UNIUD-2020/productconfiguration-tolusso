@@ -57,3 +57,14 @@ Ho pensato di attenuare l'effetto dell'AO in base a quanto un oggetto sia metall
 ## Simulazione sito
 
 Ho costruito il sito usando html e css con l'aiuto di [bootstrap](https://getbootstrap.com/) e inserito il risultato in un elemento canvas.
+
+## Aggiunta PointLight
+
+Ho aggiunto una pointLight per il manico e per i materiali "complessi" (quelle con texture allegate). La ho posizionata leggermente sopra il manico in una posizione che non vada a interferire con le semisfere che si vedono in modo da lasciare l'effetto di riflessione per qui punti. 
+
+## Calcolo cspec e cdiff
+
+Già precedentemente avevo usato calcoli aggiuntivi per sistemare i valori delle mappe Metal e Albedo in modo da rispecchiare cspec e cdiff, 
+ho trovato un [articolo](https://marmoset.co/posts/pbr-texture-conversion/#metaltospec) che spiega come trasformarle utilizzando photoshop e
+ho provato a utilizzare la tecnica all'interno degli shader in maniera intuitiva, non sono sicuro che siano matematicamente perfetti, ma 
+almeno a livello visivo il risultato è a mio parere corretto.
